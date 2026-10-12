@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.keng.diary.mapper.ImageMapper">
+    <resultMap id="imageMap" type="com.keng.diary.model.NoteImage">
+        <id property="id" column="id"/>
+        <result property="noteId" column="note_id"/>
+        <result property="originalName" column="original_name"/>
+        <result property="storageKey" column="storage_key"/>
+        <result property="mimeType" column="mime_type"/>
+        <result property="sizeBytes" column="size_bytes"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.keng.diary.model.NoteImage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO note_image (note_id, original_name, storage_key, mime_type, size_bytes, sort_order, create_time)
+        VALUES (#{noteId}, #{originalName}, #{storageKey}, #{mimeType}, #{sizeBytes}, #{sortOrder}, #{createTime})
+    </insert>
+
+    <select id="list" resultMap="imageMap">
+        SELECT id, note_id, original_name, storage_key, mime_type, size_bytes, sort_order, create_time
+        FROM note_image WHERE note_id = #{noteId} ORDER BY sort_order, id
+    </select>
+
+    <select id="findByName" resultMap="imageMap">
+        SELECT i.id, i.note_id, i.original_name, i.storage_key, i.mime_type,
+            i.size_bytes, i.sort_order, i.create_time
+        FROM note_image i JOIN note n ON n.id = i.note_id
+        WHERE i.note_id = #{noteId} AND i.original_name = #{name} AND n.delete_time IS NULL
+    </select>
+
+    <delete id="delete">DELETE FROM note_image WHERE id = #{id}</delete>
+</mapper>

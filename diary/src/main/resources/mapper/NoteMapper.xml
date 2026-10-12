@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.keng.diary.mapper.NoteMapper">
+    <resultMap id="noteMap" type="com.keng.diary.model.Note">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="mdName" column="md_name"/>
+        <result property="content" column="content"/>
+        <result property="category" column="category"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="deleteTime" column="delete_time"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.keng.diary.model.Note" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO note (title, md_name, content, category, create_time)
+        VALUES (#{title}, #{mdName}, #{content}, #{category}, #{createTime})
+    </insert>
+
+    <select id="find" resultMap="noteMap">
+        SELECT id, title, md_name, content, category, create_time, update_time, delete_time
+        FROM note WHERE id = #{id} AND delete_time IS NULL
+    </select>
+
+    <select id="list" resultMap="noteMap">
+        SELECT id, title, md_name, content, category, create_time, update_time, delete_time
+        FROM note
+        WHERE delete_time IS NULL
+        <if test="category != null">AND category = #{category}</if>
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <update id="update" parameterType="com.keng.diary.model.Note">
+        UPDATE note SET title = #{title}, md_name = #{mdName}, content = #{content},
+            category = #{category}, update_time = #{updateTime}
+        WHERE id = #{id} AND delete_time IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE note SET delete_time = #{deleteTime}
+        WHERE id = #{id} AND delete_time IS NULL
+    </update>
+</mapper>
