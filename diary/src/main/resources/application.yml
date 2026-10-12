@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: diary
+
+server:
+  port: 9292
