@@ -3,11 +3,13 @@ package com.keng.diary;
 import com.keng.diary.controller.ApiError;
 import com.keng.diary.controller.NoteController;
 import com.keng.diary.model.Note;
+import com.keng.diary.model.NoteImage;
 import com.keng.diary.model.NotePage;
-import com.keng.diary.service.NoteService;
+import com.keng.diary.service.INoteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,12 +28,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
 class NoteControllerTests {
-    private NoteService service;
+    private INoteService service;
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        service = mock(NoteService.class);
+        service = mock(INoteService.class);
         mvc = standaloneSetup(new NoteController(service)).setControllerAdvice(new ApiError()).build();
     }
 
@@ -77,5 +79,17 @@ class NoteControllerTests {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404))
                 .andExpect(jsonPath("$.message").value("记录不存在"));
+    }
+
+    @Test
+    void imageRouteReturnsOssImageBytes() throws Exception {
+        NoteImage image = new NoteImage();
+        image.setMimeType("image/png");
+        when(service.image(7L, "photo.png")).thenReturn(image);
+        when(service.readImage(image)).thenReturn(new ByteArrayResource(new byte[]{1, 2, 3}));
+
+        mvc.perform(get("/api/v1/notes/7/images/photo.png"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"));
     }
 }

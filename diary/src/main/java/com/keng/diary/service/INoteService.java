@@ -8,7 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-public interface NoteService {
+public interface INoteService {
     Note create(String title, String category, MultipartFile document, List<MultipartFile> images);
 
     Note update(long id, String title, String category, MultipartFile document,

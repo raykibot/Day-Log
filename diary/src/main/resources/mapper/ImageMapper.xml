@@ -24,10 +24,10 @@
     </select>
 
     <select id="findByName" resultMap="imageMap">
-        SELECT i.id, i.note_id, i.original_name, i.storage_key, i.mime_type,
-            i.size_bytes, i.sort_order, i.create_time
-        FROM note_image i JOIN note n ON n.id = i.note_id
-        WHERE i.note_id = #{noteId} AND i.original_name = #{name} AND n.delete_time IS NULL
+        SELECT id, note_id, original_name, storage_key, mime_type,
+            size_bytes, sort_order, create_time
+        FROM note_image
+        WHERE note_id = #{noteId} AND original_name = #{name}
     </select>
 
     <delete id="delete">DELETE FROM note_image WHERE id = #{id}</delete>

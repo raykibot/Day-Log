@@ -5,8 +5,9 @@ import com.keng.diary.mapper.NoteMapper;
 import com.keng.diary.model.Note;
 import com.keng.diary.model.NoteImage;
 import com.keng.diary.model.NotePage;
-import com.keng.diary.service.ImageStore;
-import com.keng.diary.service.NoteService;
+import com.keng.diary.service.IFileService;
+import com.keng.diary.service.INoteService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -30,18 +31,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-public class NoteServiceImpl implements NoteService {
+@Slf4j
+public class NoteServiceImpl implements INoteService {
     private static final long MAX_MD_BYTES = 1024 * 1024;
     private static final Pattern IMAGE_LINK = Pattern.compile("!\\[[^]]*]\\(([^)]+)\\)");
     private final NoteMapper notes;
     private final ImageMapper images;
-    private final ImageStore store;
+    private final IFileService files;
     private final TransactionTemplate transaction;
 
-    public NoteServiceImpl(NoteMapper notes, ImageMapper images, ImageStore store, TransactionTemplate transaction) {
+    public NoteServiceImpl(NoteMapper notes, ImageMapper images, IFileService files, TransactionTemplate transaction) {
         this.notes = notes;
         this.images = images;
-        this.store = store;
+        this.files = files;
         this.transaction = transaction;
     }
 
@@ -53,8 +55,6 @@ public class NoteServiceImpl implements NoteService {
         String content = markdown(document);
         List<NoteImage> added = new ArrayList<>();
         try {
-            addFiles(files, added);
-            checkImages(content, added);
             return transaction.execute(status -> {
                 Note note = new Note();
                 note.setTitle(cleanTitle);
@@ -63,16 +63,17 @@ public class NoteServiceImpl implements NoteService {
                 note.setContent(content);
                 note.setCreateTime(now());
                 notes.insert(note);
+                addFiles(note.getId(), files, added);
+                checkImages(content, added);
                 for (int i = 0; i < added.size(); i++) {
                     NoteImage image = added.get(i);
-                    image.setNoteId(note.getId());
                     image.setSortOrder(i);
                     images.insert(image);
                 }
                 return get(note.getId());
             });
         } catch (RuntimeException e) {
-            added.forEach(store::delete);
+            cleanup(added);
             throw e;
         }
     }
@@ -87,7 +88,6 @@ public class NoteServiceImpl implements NoteService {
         List<NoteImage> added = new ArrayList<>();
         List<NoteImage> removed = new ArrayList<>();
         try {
-            addFiles(files, added);
             Note saved = transaction.execute(status -> {
                 Note note = get(id);
                 List<NoteImage> current = note.getImages();
@@ -102,6 +102,7 @@ public class NoteServiceImpl implements NoteService {
                     if (keep.contains(image.getId())) finalImages.add(image);
                     else removed.add(image);
                 }
+                addFiles(id, files, added);
                 finalImages.addAll(added);
                 String content = newContent == null ? note.getContent() : newContent;
                 checkImages(content, finalImages);
@@ -114,16 +115,15 @@ public class NoteServiceImpl implements NoteService {
                 removed.forEach(image -> images.delete(image.getId()));
                 int order = current.stream().mapToInt(NoteImage::getSortOrder).max().orElse(-1) + 1;
                 for (NoteImage image : added) {
-                    image.setNoteId(id);
                     image.setSortOrder(order++);
                     images.insert(image);
                 }
                 return get(id);
             });
-            removed.forEach(store::delete);
+            cleanup(removed);
             return saved;
         } catch (RuntimeException e) {
-            added.forEach(store::delete);
+            cleanup(added);
             throw e;
         }
     }
@@ -154,7 +154,8 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     public NoteImage image(long noteId, String name) {
-        ImageStore.fileName(name);
+        files.fileName(name);
+        if (notes.find(noteId) == null) throw notFound();
         NoteImage image = images.findByName(noteId, name);
         if (image == null) throw notFound();
         return image;
@@ -162,12 +163,22 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     public Resource readImage(NoteImage image) {
-        return store.read(image);
+        return files.readImage(image);
     }
 
-    private void addFiles(List<MultipartFile> files, List<NoteImage> added) {
-        if (files == null) return;
-        for (MultipartFile file : files) added.add(store.save(file));
+    private void addFiles(long noteId, List<MultipartFile> uploads, List<NoteImage> added) {
+        if (uploads == null) return;
+        for (MultipartFile file : uploads) added.add(files.uploadImage(noteId, file));
+    }
+
+    private void cleanup(List<NoteImage> list) {
+        for (NoteImage image : list) {
+            try {
+                files.deleteImage(image);
+            } catch (RuntimeException e) {
+                log.warn("OSS图片清理失败: {}", image.getStorageKey(), e);
+            }
+        }
     }
 
     private void checkImages(String content, List<NoteImage> list) {
@@ -180,7 +191,7 @@ public class NoteServiceImpl implements NoteService {
         Matcher links = IMAGE_LINK.matcher(content);
         while (links.find()) {
             String name = links.group(1).trim();
-            ImageStore.fileName(name);
+            files.fileName(name);
             if (!names.contains(name.toLowerCase(Locale.ROOT))) {
                 throw badRequest("Markdown引用了未上传的图片：" + name);
             }
@@ -191,7 +202,7 @@ public class NoteServiceImpl implements NoteService {
         if (file == null || file.isEmpty() || file.getSize() > MAX_MD_BYTES) {
             throw badRequest("必须上传不超过1MB的Markdown文件");
         }
-        String name = ImageStore.fileName(file.getOriginalFilename());
+        String name = files.fileName(file.getOriginalFilename());
         if (!name.toLowerCase(Locale.ROOT).endsWith(".md")) throw badRequest("文档必须是.md文件");
         return name;
     }
