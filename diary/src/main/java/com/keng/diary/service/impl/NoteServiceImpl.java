@@ -134,18 +134,34 @@ public class NoteServiceImpl implements INoteService {
 
         List<Note> noteList = noteMapper.getNoteListByCategory(category);
         for (Note note : noteList) {
-            NoteVo vo =new NoteVo();
-            vo.setId(note.getId());
-            vo.setTitle(note.getTitle());
-            vo.setMdName(note.getMdName());
-            vo.setContent(note.getContent());
-            vo.setCategory(note.getCategory());
-            vo.setCreateTime(note.getCreateTime());
-            vo.setUpdateTime(note.getUpdateTime());
-
-            noteVoList.add(vo);
+            noteVoList.add(toNoteVo(note));
         }
         return noteVoList;
+    }
+
+    @Override
+    public NoteVo getNote(long id) {
+        Note note = noteMapper.find(id);
+        if (note == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "记录不存在");
+        }
+        return toNoteVo(note);
+    }
+
+    private NoteVo toNoteVo(Note note) {
+        NoteVo vo = new NoteVo();
+        vo.setId(note.getId());
+        vo.setTitle(note.getTitle());
+        vo.setMdName(note.getMdName());
+        vo.setContent(note.getContent());
+        vo.setCategory(note.getCategory());
+        vo.setCreateTime(note.getCreateTime());
+        vo.setUpdateTime(note.getUpdateTime());
+        List<NoteImage> images = imageMapper.list(note.getId());
+        if (images != null) {
+            vo.setImages(images);
+        }
+        return vo;
     }
 
     private void validateNote(NoteDto note) {

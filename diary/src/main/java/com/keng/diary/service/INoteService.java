@@ -19,4 +19,6 @@ public interface INoteService {
 
     List<NoteVo> getNotesList(String category);
 
+    NoteVo getNote(long id);
+
 }

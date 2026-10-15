@@ -11,8 +11,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -89,12 +91,44 @@ class NoteControllerTests {
         note.setId(7L);
         note.setCategory("WORK");
         note.setMdName("today.md");
+        NoteImage image = new NoteImage();
+        image.setId(3L);
+        image.setNoteId(7L);
+        image.setOriginalName("a.png");
+        image.setStorageKey("notes/7/internal.png");
+        note.setImages(List.of(image));
         when(service.getNotesList("WORK")).thenReturn(List.of(note));
 
         mvc.perform(get("/api/v1/notes/noteList").param("category", "WORK"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].id").value(7))
-                .andExpect(jsonPath("$.data[0].category").value("WORK"));
+                .andExpect(jsonPath("$.data[0].category").value("WORK"))
+                .andExpect(jsonPath("$.data[0].images[0].url")
+                        .value("/api/v1/notes/7/images/a.png"))
+                .andExpect(jsonPath("$.data[0].images[0].storageKey").doesNotExist());
         verify(service).getNotesList("WORK");
+    }
+
+    @Test
+    void getsFullNoteForDetailPage() throws Exception {
+        NoteVo note = new NoteVo();
+        note.setId(7L);
+        note.setContent("# 完整正文");
+        when(service.getNote(7L)).thenReturn(note);
+
+        mvc.perform(get("/api/v1/notes/7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(7))
+                .andExpect(jsonPath("$.data.content").value("# 完整正文"))
+                .andExpect(jsonPath("$.data.images").isArray());
+    }
+
+    @Test
+    void missingDetailReturns404() throws Exception {
+        when(service.getNote(99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "记录不存在"));
+
+        mvc.perform(get("/api/v1/notes/99"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("记录不存在"));
     }
 }

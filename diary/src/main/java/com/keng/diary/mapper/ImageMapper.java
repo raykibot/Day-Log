@@ -10,7 +10,7 @@ import java.util.List;
 public interface ImageMapper {
     void insert(NoteImage image);
 
-    List<NoteImage> list(long noteId);
+    List<NoteImage> list(@Param("noteId") long noteId);
 
     NoteImage findByName(@Param("noteId") long noteId, @Param("name") String name);
 

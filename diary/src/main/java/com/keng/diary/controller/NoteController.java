@@ -66,6 +66,14 @@ public class NoteController {
         return Result.success(notesList);
     }
 
+    @GetMapping("/{id}")
+    public Result<NoteVo> getNote(@PathVariable long id) {
+        log.info("获取记录详情--ID：{}", id);
+        NoteVo note = noteService.getNote(id);
+        return Result.success(note);
+    }
+
+
 
     @GetMapping("/{id}/images/{filename:.+}")
     public ResponseEntity<Resource> image(@PathVariable long id, @PathVariable String filename) {
@@ -74,5 +82,4 @@ public class NoteController {
                 .contentType(MediaType.parseMediaType(image.getMimeType()))
                 .body(noteService.readImage(image));
     }
-
 }
