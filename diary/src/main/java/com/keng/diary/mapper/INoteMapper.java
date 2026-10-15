@@ -8,8 +8,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
-public interface NoteMapper {
-    void insert(Note note);
+public interface INoteMapper {
+
+    int insert(Note note);
 
     Note find(long id);
 
@@ -19,4 +20,6 @@ public interface NoteMapper {
     int update(Note note);
 
     int softDelete(@Param("id") long id, @Param("deleteTime") LocalDateTime deleteTime);
+
+    List<Note> getNoteListByCategory(@Param("category") String category);
 }

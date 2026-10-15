@@ -1,21 +1,19 @@
 package com.keng.diary.controller;
 
-import com.keng.diary.model.Note;
+import com.keng.diary.model.DTO.NoteDto;
 import com.keng.diary.model.NoteImage;
-import com.keng.diary.model.NotePage;
 import com.keng.diary.model.Result;
+import com.keng.diary.model.VO.NoteVo;
 import com.keng.diary.service.IFileService;
 import com.keng.diary.service.INoteService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 
 @RestController
@@ -26,71 +24,55 @@ public class NoteController {
     @Autowired
     private IFileService fileService;
 
-    private final INoteService service;
+    @Autowired
+    private INoteService noteService;
 
-    public NoteController(INoteService service) {
-        this.service = service;
+    /**
+     * 图片上传
+     *
+     * @param imageFile 图片文件
+     * @return 阿里云图片下载路径
+     */
+    @PostMapping("/upload")
+    public Result<String> upload(@RequestParam("fileName") MultipartFile imageFile) {
+
+        log.info("图片上传");
+
+        String imageURL = fileService.uploadFile(imageFile);
+        return Result.success(imageURL);
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @ResponseStatus(HttpStatus.CREATED)
-    public Result<Note> create(@RequestParam(required = false) String title,
-                                       @RequestParam String category,
-                                       @RequestParam MultipartFile document,
-                                       @RequestParam(required = false) List<MultipartFile> images,
-                                       HttpServletResponse response) {
+    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Boolean> createNote(@RequestPart("noteDto") NoteDto noteDto,
+                                      @RequestPart(value = "imageFile", required = false) List<MultipartFile> imageFiles) {
 
+        log.info("创建记录");
 
-        log.info("新建文件");
-        Note note = service.create(title, category, document, images);
-        response.setHeader("Location", "/api/v1/notes/" + note.getId());
-        return Result.created(note);
+        Boolean created = noteService.createNote(noteDto, imageFiles == null ? List.of() : imageFiles);
+        if (!Boolean.TRUE.equals(created)) {
+            return Result.error();
+        }
+        log.info("创建成功");
+        return Result.created(true);
     }
 
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Result<Note> update(@PathVariable long id, @RequestParam(required = false) String title,
-                                       @RequestParam String category,
-                                       @RequestParam(required = false) MultipartFile document,
-                                       @RequestParam(required = false) List<Long> keepImageIds,
-                                       @RequestParam(required = false) List<MultipartFile> images) {
 
-        log.info("更新记录");
-        return Result.success(service.update(id, title, category, document, keepImageIds, images));
+    @GetMapping("/noteList")
+    public Result<List<NoteVo>> getNotes(@RequestParam(value = "category", required = false) String category) {
+
+        log.info("获取记录--分类类型：{}", category);
+
+        List<NoteVo> notesList = noteService.getNotesList(category);
+        return Result.success(notesList);
     }
 
-    @GetMapping
-    public Result<NotePage> list(@RequestParam(defaultValue = "1") int page,
-                                         @RequestParam(defaultValue = "10") int size,
-                                         @RequestParam(required = false) String category) {
-        log.info("查询所有记录列表");
-        return Result.success(service.list(page, size, category));
-    }
-
-    @GetMapping("/{id}")
-    public Result<Note> get(@PathVariable long id) {
-        log.info("分类查询");
-        return Result.success(service.get(id));
-    }
-
-    @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable long id) {
-        log.info("删除文件");
-        service.delete(id);
-        return Result.success(null);
-    }
 
     @GetMapping("/{id}/images/{filename:.+}")
     public ResponseEntity<Resource> image(@PathVariable long id, @PathVariable String filename) {
-        NoteImage image = service.image(id, filename);
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(image.getMimeType()))
-                .body(service.readImage(image));
-    }
-
-    @PostMapping("/upload")
-    public Result<String> upload(@RequestParam("fileName") MultipartFile imageFile){
-        log.info("图片上传");
-        String imageURL = fileService.uploadFile(imageFile);
-        return Result.success(imageURL);
+        NoteImage image = noteService.findImage(id, filename);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.getMimeType()))
+                .body(noteService.readImage(image));
     }
 
 }

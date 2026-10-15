@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -14,8 +15,8 @@ public class Note {
     private String mdName;
     private String content;
     private String category;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    private Date createTime;
+    private Date updateTime;
     @JsonIgnore
     private LocalDateTime deleteTime;
     private List<NoteImage> images = new ArrayList<>();

@@ -16,6 +16,8 @@
 
 # Local runtime data and credentials
 **/data/
+!diary-web/src/data/
+!diary-web/src/data/**
 **/uploads/
 **/uploads-test/
 .env
@@ -28,3 +30,4 @@
 # Operating system files
 .DS_Store
 Thumbs.db
+/src/main/resources/application.yml
