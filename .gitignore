@@ -30,4 +30,4 @@
 # Operating system files
 .DS_Store
 Thumbs.db
-/src/main/resources/application.yml
+diary/src/main/resources/application.yml
